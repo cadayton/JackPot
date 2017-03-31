@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-  .VERSION 2.0.0
+  .VERSION 2.1.0
   .GUID 0fd916fe-3a0d-48c4-a196-18ea085e071f
   .AUTHOR Craig Dayton
   .COMPANYNAME Example.com
@@ -31,6 +31,9 @@
   .PARAMETER game
     Displays all the history results of a specified lottery game in the Out-Gridview.
 
+    When used in combination with the '-picker' option, will select a set numbers to
+    be played for the specified game.
+
   .PARAMETER online
     Displays the current lottery game results on the console.
 
@@ -38,12 +41,27 @@
     Displays the current lottery game results on the console and updates
     the history file.
 
+    When used in combination with '-online' option, will compare the winning
+    numbers to the numbers selected using the '-picker' and report on the number 
+    of matches.
+
   .PARAMETER all
     Displays all the history lottery game results in a Out-Gridview.
 
   .PARAMETER picker
     Used in combination with the 'game' option to pick a set of winning
     numbers for a game based on frequency of past winning numbers.
+
+    If the '-all' option is used in combintion with the '-picker' option then
+    then all potential game numbers will be candidates for selection.
+
+    To restore the number selection process back to only selecting from
+    the most frequently used numbers for a game, the file, JackPot-HotNums.csv
+    must be deleted.
+
+  .PARAMETER picks
+    Displays the history of past games that have been played.
+
 
   .PARAMETER count
     Used in combination with the 'game' and 'picker' option to generate
@@ -56,7 +74,73 @@
 
   .OUTPUTS
     A history csv file named, JackPot-Results.csv
+
+  .EXAMPLE
+
+    The ordering of the examples below is the typically workflow
+    when placing lottery game bets.
     
+    It is not necessary to actually purchase any game tickets, but one can
+    just play along as though a purchase was made.
+
+    I doubt this code is providing any increase in the odds of winning any 
+    specific game.
+    
+    It will though greatly reduce the time it takes to sort out any winning
+    matches from multiple tickets.  Proviced one is using this code to 
+    select the game numbers.
+
+  .EXAMPLE
+    Get-JackPot -update
+
+    Queries the lottery web page and then extracts and displays the
+    current game results.  The history file, JackPot-Result.csv is then
+    updated with new game results.
+
+    Routinely running this command build a local copy of all the lottery
+    games.
+
+  .EXAMPLE
+    Get-JackPot -update -picker -game PowerBall -count 2
+
+    Generates 2 sets winning numbers for the 'PowerBall' game
+    and places the bets into the file, JackPot-Picks.csv.
+
+    These numbers need to be generated on the same day as the
+    drawing is being held.
+
+    Example Output:
+      PowerBall Game (1):  16 23 25 32 64 09
+      PowerBall Game (2):  25 28 40 52 64 21
+
+    With these numbers in hand, go to your local lottery store
+    and complete the game card.
+
+    By default only the most frequent winning numbers for the game
+    are candidiates for selection.  The default selection process
+    can be overridden by specified '-all' option.
+
+    Once the '-all' is specified that method becomes the new default.
+    To switch back to the prior default the file, JackPot-HotNums.csv
+    must be deleted.
+
+    Valid games are 'PowerBall', 'MegaMillions', 'Lotto', 'Hit5', 'Match4',
+    and 'DailyGame'.
+
+  .EXAMPLE
+    Get-JackPot -online -update
+
+    Queries the lottery web page and then extracts and displays the
+    current game results.
+    
+    Next the winning results are compared to the picked numbers for the
+    game and a report is generated showing of balls matched per game.
+
+    The recent game picks in the file, JackPot-Picks.csv are updated
+    with the winning results and match count then moved to the file,
+    JackPot-PickHostory.csv. Afterwards, the JackPot-Picks.csv file is
+    removed.
+  
   .EXAMPLE
     Get-JackPot
 
@@ -74,25 +158,14 @@
     current game results.
 
   .EXAMPLE
-    Get-JackPot -update
+    Get-JackPot -picks
 
-    Queries the lottery web page and then extracts and displays the
-    current game results.  The history file is then updated with new
-    game results.
-  
-  .EXAMPLE
-    Get-JackPot -game PowerBall -picker -count 3
-
-    Generates 3 sets of winning numbers for the PowerBall game.
-
-    Example Output:
-      PowerBall Game (1):  16 23 25 32 64 09
-      PowerBall Game (2):  25 28 40 52 64 21
-      PowerBall Game (3):  12 23 52 64 69 20
+    Displays history of the games played compared to the drawing results.
 
   .NOTES
 
     Author: Craig Dayton
+    Updated: 03/27/2017 - Added feature to evaluate picked numbers against winning numbers
     Updated: 03/24/2017 - Added feature to generate a set of winning numbers
     Updated: 03/24/2017 - Game record duplication algorthim modified
     Updated: 03/23/2017 - Fixed some logic errors
@@ -136,6 +209,12 @@
         [switch]$picker,
       [Parameter(Position=5,
         Mandatory=$false,
+        HelpMessage = "Display the pick history of all games",
+        ValueFromPipeline=$True)]
+        [ValidateNotNullorEmpty()]
+        [switch]$picks,
+      [Parameter(Position=6,
+        Mandatory=$false,
         HelpMessage = "Number of games",
         ValueFromPipeline=$True)]
         [ValidateNotNullorEmpty()]
@@ -150,8 +229,9 @@
   [String[]]$MultiHeader    = "Game", "HotNums","Multiplier";
   [String[]]$StdHeader      = "Game", "HotNums";
   [String[]]$DailyHeader    = "Game", "Pos1","Pos2","Pos3";
-  
-  # Most frequent winning numbers per game
+  [String[]]$PickHeader     = "Game", "PickDate","PickDay","Choices","Cost","WinNums","Matches","Prize","Multiplier";
+
+  # Top frequent winning numbers per game
     $HotArray = New-Object System.Collections.ArrayList;
     $HotArray.Add('PowerBall,03 12 16 23 25 28 32 33 40 52 64 69,02 03 05 06 09 10 12 17 19 20 21 25') | Out-Null;
     $HotArray.Add('MegaMillions,02 11 20 25 29 31 35 41 44 45 49 51,01 02 03 04 06 07 08 09 10 12 14 15') | Out-Null;
@@ -159,6 +239,16 @@
     $HotArray.Add('Hit5,35 37 13 33 14 23 17 12 27 07 28 02 21 03 11 34 38 10 31') | Out-Null;
     $HotArray.Add('Match4,19 18 24 05 13 08 04 02 16 07 21 06') | Out-Null;
     $HotArray.Add('DailyGame,8 5 4 7 1,7 2 9 6 5,8 0 7 2 4') | Out-Null;
+  #
+
+  # All game numbers
+    $AllArray = New-Object System.Collections.ArrayList;
+    $AllArray.Add('PowerBall,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26') | Out-Null;
+    $AllArray.Add('MegaMillions,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75,01 02 03 04 06 07 08 09 10 12 14 15') | Out-Null;
+    $AllArray.Add('Lotto,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49') | Out-Null;
+    $AllArray.Add('Hit5,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39') | Out-Null;
+    $AllArray.Add('Match4,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24') | Out-Null;
+    $AllArray.Add('DailyGame,1 2 3 4 5 6 7 8 9,1 2 3 4 5 6 7 8 9,1 2 3 4 5 6 7 8 9') | Out-Null;
   #
 
 #
@@ -172,6 +262,7 @@
     $game = $Global:game;
     [bool]$needNums = $true;
     $DrawDate, $DrawDay, $Numbers, $Multiplier, $Prize, $NextDate, $NextDay = $null;
+
     get-content -Path $fname | ForEach-Object {  # process each input line
       # evaluate any non-blank line
       if ($_ -notmatch "^ ") {
@@ -258,6 +349,82 @@
     }
   }
 
+  function Get-Matches {
+    param([string]$pickGame, [string]$choices, [string]$winners)
+
+    $c1 = $choices.Split(" ");
+    $w1 = $winners.Split(" ");
+    [int]$matchcnt    = 0;
+    [int]$gameBall    = 0;
+    [int]$lastIdx     = $w1.Length - 1;
+    [int[]]$matchRslt = 0,0;
+
+    for ($i = 0;$i -le $lastIdx; $i++) {
+      for ($j = 0; $j -le $lastIdx; $j++) {
+        if ($c1[$i] -eq $w1[$j]) {
+          $matchcnt++
+          if ($pickGame -eq "PowerBall" -or $pickGame -eq "MegaMillions") {
+            if ($i -eq $lastIdx -and $j -eq $lastIdx) {$gameBall++; $matchcnt--; }
+          }
+        }
+      }
+    }
+
+    $matchRslt[0] = $matchcnt;  $matchRslt[1] = $gameBall;
+    return $matchRslt;
+
+  }
+
+  function Update-PickHistory {
+    param ([string]$fname)
+
+    if (Test-Path $curPicks ) {
+    
+      $currentGames = Import-CSV -Path $fname -Delimiter ";" -Header $JackPotHeader;
+      $currentPicks = Import-CSV -Path $curPicks -Delimiter ";" -Header $PickHeader;
+      $pickResults = @();
+
+      Write-Host "Checking prior games for matching numbers..." -ForegroundColor Yellow;
+
+      $currentGames | ForEach-Object {
+        [bool]$gameBallMatch = $false;
+        $curGame = $_;
+        $curGameName = $_.Game + $_.DrawDate;
+        #[int]$cmpSize = ($gameName.Length + 11) - 1;
+        #$curGameDate = $_DrawDate;
+        $currentPicks | ForEach-Object {
+          $curPick = $_;
+          $curPickName = $_.Game + $_.PickDate;
+          if ($curGameName -eq $curPickName) {
+            $curPick.WinNums = $curGame.Numbers;
+            if ($curPick.Choices -eq $curGame.Numbers) { # All numbers match!!
+              $nums = $curGame.Numbers;
+              $cnt = $nums.Split(" ")
+              $curPick.Matches = $cnt.Length;
+              $gameBallMatch = $true;
+              $color = "Red";
+            } else { # count matching numbers
+              $matches = Get-Matches $curPick.Game $curPick.Choices $curPick.WinNums;
+              $curPick.Matches = $matches[0];
+              if ($matches[0] -gt 0) { $color = "Green"} else { $color = "Blue"}
+              if ($matches[1] -gt 0) { $gameBallMatch = $true; $color1 = "Green"} else {$color1 = "Blue"}
+            }
+            if ($curPick.Game -eq "PowerBall" -or $curPick.Game -eq "MegaMillions" ) {
+              $curPick.Multiplier = $curGame.Multiplier;
+            } else { 
+              $curPick.Multiplier = "NA";
+            };
+            $curPick | Export-CSV -Path $PickHis -Delimiter "," -Append -NoTypeInformation
+            $pickResults += $curPick;
+          }
+        }
+      }
+      $pickResults | Format-Table -Auto
+      Write-Host "Check $URI1 for the amount won for each match" -ForegroundColor Green
+      Remove-Item -Path $curPicks
+    }
+  }
+
   function Get-WaWebRequest {
     
     $response = Invoke-WebRequest -URI $URI1;
@@ -281,7 +448,7 @@
       $data.innerText | Out-File -FilePath $temp1 -Append -Encoding ascii;
       Convert-fileToCSV $temp1;
 
-      Write-Progress -Activity "Go away" -Completed;
+      Write-Progress -Activity "Done" -Completed;
 
       $Global:game = "Lotto";
       Write-Host " Processing $Global:game results"  -ForegroundColor Green
@@ -329,6 +496,7 @@
       $currentGames | Format-Table -AutoSize -Wrap
 
       if ($update) { Update-JackPotHistory $temp2; };
+      if ((Test-Path $curPicks) -and $online -and $update) { Update-PickHistory $temp2 };
 
       if (Test-Path $temp2 ) {
         Remove-Item -Path $temp2 
@@ -360,6 +528,13 @@
       $selb     = [system.String]::Join(" ",$sela)
       $sel      = $selb + " " + $sel2;
       Write-Host "$game Game ($i):  $sel" -ForegroundColor Green
+      if ($update) {
+        $dt = Get-Date -format "yyyy-MM-dd";
+        $da = Get-Date -uformat %a;
+        $da = " " + $da.ToUpper();
+        $grec = $game + ";" + $dt + ";" + $da + ";" + $sel + ";;;";
+        $grec | Out-File -FilePath $curPicks -Append -Encoding ascii;
+      }
     }
   }
 
@@ -368,6 +543,7 @@
 
     $HotPB = Import-CSV -Path $HotNums -Delimiter "," -Header $StdHeader |
       Where-Object {$_.Game -match $game };
+
     for ($i = 1; $i -le $count; $i++) {
       $topNums  = $HotPB.HotNums;
       $top1     = $topNums.Split(" ");
@@ -375,6 +551,13 @@
       $sela     = $sel1 | Sort-Object;
       $selb     = [system.String]::Join(" ",$sela)
       Write-Host "$game Game ($i):  $selb" -ForegroundColor Green
+      if ($update) {
+        $dt = Get-Date -format "yyyy-MM-dd";
+        $da = Get-Date -uformat %a;
+        $da = " " + $da.ToUpper();
+        $grec = $game + ";" + $dt + ";" + $da + ";" + $selb + ";;;";
+        $grec | Out-File -FilePath $curPicks -Append -Encoding ascii;
+      }
     }
   }
 
@@ -385,6 +568,13 @@
       $HotArray | ForEach-Object {
         $_ | Out-File -FilePath $HotNums -Append -Encoding ascii;
       }
+    }
+
+    if ($all) {
+      if (Test-Path $HotNums) { Remove-Item -Path $HotNums }
+        $HotArray | ForEach-Object {
+          $_ | Out-File -FilePath $HotNums -Append -Encoding ascii;
+        }
     }
 
     switch ($game) {
@@ -418,6 +608,13 @@
           $sel3     = Get-Random -InputObject $pos3 -Count 1
           $sel      = $sel1 + " " + $sel2 + " " + $sel3;
           Write-Host "$game Game ($i):  $sel" -ForegroundColor Green
+          if ($update) {
+            $dt = Get-Date -format "yyyy-MM-dd";
+            $da = Get-Date -uformat %a;
+            $da = " " + $da.ToUpper();
+            $grec = $game + ";" +$dt + ";" + $da + ";" + $sel + ";;;";
+            $grec | Out-File -FilePath $curPicks -Append -Encoding ascii;
+          }
         }
 
       }
@@ -438,6 +635,8 @@
   $temp2    = "$sPath\temp2.txt";
   $JackPot  = "$sPath\JackPot-Results.csv";
   $HotNums  = "$sPath\JackPot-HotNums.csv";
+  $curPicks    = "$sPath\JackPot-Picks.csv";
+  $PickHis  = "$sPath\JackPot-PickHistory.csv";
 
   if (Test-Path $temp1 ) {
     Remove-Item -Path $temp1 
@@ -448,10 +647,11 @@
   };
 
   $choice = $null;
-  if ($online -or $update) { $choice = "WebRequest"};
-  if ($game -and (!($picker))) { $choice = "GameHistory"};
-  if ($game -and $picker) { $choice = "GamePicker"};
-  if ($all) { $choice = "AllHistory"};
+  if ($game -and $picker) { $choice = "GamePicker"} 
+  elseif ($online -or $update) { $choice = "WebRequest"}
+  elseif ($game) { $choice = "GameHistory"}
+  elseif ($all) { $choice = "AllHistory"}
+  elseif ($picks) { $choice = "PickHistory"}
 
   switch ($choice) {
     "WebRequest" {
@@ -476,6 +676,13 @@
     "AllHistory" {
       if (Test-Path $JackPot) {
         Import-CSV -Path $JackPot -Delimiter ";" -Header $JackPotHeader | Out-GridView -Title "Listing of lottery game records"
+      } else { Show-JackPotError; }
+    }
+    "PickHistory" {
+      if (Test-Path $JackPot) {
+        $currentPicks = Import-CSV -Path $PickHis
+        #$currentPicks | Select-Object | Format-Table -AutoSize -Wrap;
+        $currentPicks | Out-GridView -Title "Listing of games played history"
       } else { Show-JackPotError; }
     }
     Default {
