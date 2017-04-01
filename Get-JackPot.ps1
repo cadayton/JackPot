@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-  .VERSION 2.1.0
+  .VERSION 2.1.1
   .GUID 0fd916fe-3a0d-48c4-a196-18ea085e071f
   .AUTHOR Craig Dayton
   .COMPANYNAME Example.com
@@ -87,7 +87,7 @@
     specific game.
     
     It will though greatly reduce the time it takes to sort out any winning
-    matches from multiple tickets.  Proviced one is using this code to 
+    matches from multiple tickets.  Provided one is using this code to 
     select the game numbers.
 
   .EXAMPLE
@@ -103,11 +103,23 @@
   .EXAMPLE
     Get-JackPot -update -picker -game PowerBall -count 2
 
-    Generates 2 sets winning numbers for the 'PowerBall' game
-    and places the bets into the file, JackPot-Picks.csv.
+      Generates 2 sets winning numbers for the 'PowerBall' game
+      and places the bets into the file, JackPot-Picks.csv.
+      
+      The numbers are randomly selected from the game entries in the
+      file, JackPot-HotNums.csv.  This file consists of the most
+      frequently selected winning numbers for the game.
 
-    These numbers need to be generated on the same day as the
-    drawing is being held.
+      These numbers need to be generated on the same day as the
+      drawing is being held.
+
+    Get-JackPot -update -picker -all -game MegaMillions
+
+      The '-all' option sets the default selection of game numbers
+      to be all possible numbers for the game.
+
+      Delete the file, JackPot-HotNums.csv to restore the game selection
+      of numbers to the most frequently selected numbers for the game.
 
     Example Output:
       PowerBall Game (1):  16 23 25 32 64 09
@@ -163,13 +175,13 @@
     Displays history of the games played compared to the drawing results.
 
   .NOTES
-
     Author: Craig Dayton
-    Updated: 03/27/2017 - Added feature to evaluate picked numbers against winning numbers
-    Updated: 03/24/2017 - Added feature to generate a set of winning numbers
-    Updated: 03/24/2017 - Game record duplication algorthim modified
-    Updated: 03/23/2017 - Fixed some logic errors
-    Updated: 03/22/2017 - initial release.
+      2.1.1: 04/01/2017 - Fixed logic errors & updated embeded documentation
+      2.1.0: 03/27/2017 - Added feature to evaluate picked numbers against winning numbers
+      2.0.0: 03/24/2017 - Added feature to generate a set of winning numbers
+      1.0.2: 03/24/2017 - Game record duplication algorthim modified
+      1.0.1: 03/23/2017 - Fixed some logic errors
+      1.0.0: 03/22/2017 - initial release.
     
 #>
 
@@ -238,7 +250,7 @@
     $HotArray.Add('Lotto,28 26 03 37 47 13 17 27 39 49 19 25 43 21 20 08 41 12 01 24 10') | Out-Null;
     $HotArray.Add('Hit5,35 37 13 33 14 23 17 12 27 07 28 02 21 03 11 34 38 10 31') | Out-Null;
     $HotArray.Add('Match4,19 18 24 05 13 08 04 02 16 07 21 06') | Out-Null;
-    $HotArray.Add('DailyGame,8 5 4 7 1,7 2 9 6 5,8 0 7 2 4') | Out-Null;
+    $HotArray.Add('DailyGame,8 5 4 7 1,7 2 9 6 5,8 0 1 2 4') | Out-Null;
   #
 
   # All game numbers
@@ -563,18 +575,18 @@
 
   function Get-GameNumbers {
 
+    if ($all) {
+      if (Test-Path $HotNums) { Remove-Item -Path $HotNums }
+      $AllArray | ForEach-Object {
+        $_ | Out-File -FilePath $HotNums -Append -Encoding ascii;
+      }
+    }
+
     if (Test-Path $HotNums) {} else { 
       # Create the file dynamically
       $HotArray | ForEach-Object {
         $_ | Out-File -FilePath $HotNums -Append -Encoding ascii;
       }
-    }
-
-    if ($all) {
-      if (Test-Path $HotNums) { Remove-Item -Path $HotNums }
-        $HotArray | ForEach-Object {
-          $_ | Out-File -FilePath $HotNums -Append -Encoding ascii;
-        }
     }
 
     switch ($game) {
