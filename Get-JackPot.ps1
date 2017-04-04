@@ -647,7 +647,7 @@
   $temp2    = "$sPath\temp2.txt";
   $JackPot  = "$sPath\JackPot-Results.csv";
   $HotNums  = "$sPath\JackPot-HotNums.csv";
-  $curPicks    = "$sPath\JackPot-Picks.csv";
+  $curPicks = "$sPath\JackPot-Picks.csv";
   $PickHis  = "$sPath\JackPot-PickHistory.csv";
 
   if (Test-Path $temp1 ) {
