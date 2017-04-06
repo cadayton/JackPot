@@ -925,7 +925,7 @@
           3 { Clear-Host;
               if (Test-Path $JackPot) {
                 $currentPicks = Import-CSV -Path $PickHis
-                $currentPicks | Select-Object | Format-Table -AutoSize -Wrap;
+                $currentPicks | Select-Object -Last 16 | Format-Table -AutoSize -Wrap;
               } else { Show-JackPotError; }
               Read-Host "Press any key to continue..."
               break;
