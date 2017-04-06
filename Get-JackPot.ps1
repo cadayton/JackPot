@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-  .VERSION 2.1.1
+  .VERSION 3.0.0
   .GUID 0fd916fe-3a0d-48c4-a196-18ea085e071f
   .AUTHOR Craig Dayton
   .COMPANYNAME Example.com
@@ -91,6 +91,16 @@
     select the game numbers.
 
   .EXAMPLE
+    Get-JackPot
+
+    Executing without any parameters will launch a character based menu for
+    easy display, picking, and verification of lottery numbers.
+
+    Added this feature for my Dad who does one finger typing. After using
+    the menu for a short time I find it easier than typing command line
+    parameters.
+
+  .EXAMPLE
     Get-JackPot -update
 
     Queries the lottery web page and then extracts and displays the
@@ -176,6 +186,7 @@
 
   .NOTES
     Author: Craig Dayton
+      3.0.0: 04/05/2017 - Implemented a character based menu interface
       2.1.1: 04/01/2017 - Fixed logic errors & updated embeded documentation
       2.1.0: 03/27/2017 - Added feature to evaluate picked numbers against winning numbers
       2.0.0: 03/24/2017 - Added feature to generate a set of winning numbers
@@ -242,6 +253,7 @@
   [String[]]$StdHeader      = "Game", "HotNums";
   [String[]]$DailyHeader    = "Game", "Pos1","Pos2","Pos3";
   [String[]]$PickHeader     = "Game", "PickDate","PickDay","Choices","Cost","WinNums","Matches","Prize","Multiplier";
+  [String[]]$Picked         = "Game", "PickDate","PickDay","Choices";
 
   # Top frequent winning numbers per game
     $HotArray = New-Object System.Collections.ArrayList;
@@ -514,6 +526,10 @@
         Remove-Item -Path $temp2 
       };
 
+      if ($menu) {
+        Read-Host "Press any key to continue..."
+      }
+
     } else {
       Write-Host "Received error code: $response.StatusCode from $URI1";
     }
@@ -539,7 +555,11 @@
       $sela     = $sel1 | Sort-Object;
       $selb     = [system.String]::Join(" ",$sela)
       $sel      = $selb + " " + $sel2;
-      Write-Host "$game Game ($i):  $sel" -ForegroundColor Green
+      if (!($menu)) {
+        Write-Host "$game Game ($i):  $sel" -ForegroundColor Green
+      } elseif ($count -eq 1) {
+        $Global:sel = $sel;
+      }
       if ($update) {
         $dt = Get-Date -format "yyyy-MM-dd";
         $da = Get-Date -uformat %a;
@@ -562,7 +582,11 @@
       $sel1     = Get-Random -InputObject $top1 -Count $numcnt
       $sela     = $sel1 | Sort-Object;
       $selb     = [system.String]::Join(" ",$sela)
-      Write-Host "$game Game ($i):  $selb" -ForegroundColor Green
+      if (!($menu)) {
+        Write-Host "$game Game ($i):  $selb" -ForegroundColor Green
+      } elseif ($count -eq 1) {
+        $Global:sel = $selb;
+      }
       if ($update) {
         $dt = Get-Date -format "yyyy-MM-dd";
         $da = Get-Date -uformat %a;
@@ -640,6 +664,199 @@
 
 #
 
+# Menu Functions
+
+  function Get-GameCount {
+    param ([string]$game1)
+    [int]$cntGames = Read-Host "Number of $game1 games to play? ([1]-5)";
+    if ($cntGames -ge 1 -and $cntGames -le 5) {
+      return $cntGames
+    } else {return 1}
+  }
+
+  function clear-line1 {	
+    $curPos = $host.UI.RawUI.CursorPosition
+    $curPos.X = 2; $curPos.Y = 1;
+    $host.UI.RawUI.CursorPosition = $curPos
+    $stline = "."
+    $stline = $stline.PadLeft(68)
+    Write-Host $stline -NoNewline -ForegroundColor Black
+  }
+  
+  function clear-screen {
+    $stline = "."
+    $stline = $stline.PadLeft(90)
+    for($i=0; $i -le 23; $i++){
+      $curPos = $host.UI.RawUI.CursorPosition
+      $curPos.X = 0; $curPos.Y = $i;
+      $host.UI.RawUI.CursorPosition = $curPos
+      Write-Host $stline -ForegroundColor Black
+    }
+  }
+
+  function Get-GameMenu {
+    Param ($menucolor = "Blue", $promptcolor = "Green", $pickColor = "White")
+    $gameResp = "."
+    $gameResp = $gameResp.PadLeft(68)
+    $online = $true; $update=$true;
+    $da = Get-Date -uformat %a
+    Do {
+      Clear-Host
+      Write-Host " "
+      Write-Host "  $gameResp " -ForegroundColor Red
+      Write-Host "  =====================================================" -ForegroundColor $menucolor
+      Write-Host "  |             Select Game to Play                   |" -ForegroundColor $menucolor
+      Write-Host "  =====================================================" -ForegroundColor $menucolor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     1. Pick PowerBall Numbers    (Wed,Sat)        |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     2. Pick MegaMillions Numbers (Tue,Fri)        |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     3. Pick Lotto Numbers        (Mon,Wed,Sat)    |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     4. Pick Hit5 Numbers         (Mon,Wed,Sat)    |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     5. Pick Match4 Numbers       (Daily)          |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     6. Pick DailyGame Numbers    (Daily)          |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     7. Show Game picks                            |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     8. Exit                                       |" -ForegroundColor Magenta
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  =====================================================" -ForegroundColor $menucolor
+      Write-Host "  "
+      Write-Host "  Select an option (1-8):  " -ForegroundColor $promptcolor -NoNewline
+      $curPos = $host.UI.RawUI.CursorPosition
+      $curPos.X = 0
+      $host.UI.RawUI.CursorPosition = $curPos
+      Write-Host "  Select an option (1-8): " -ForegroundColor $promptcolor -NoNewline
+      $gameResp = " "
+      $gameChoice = Read-Host
+
+      switch ($gameChoice) {                        
+        1 { $game = "PowerBall";
+            if ($da -eq "Wed" -or $da -eq "Sat") {
+              $count = Get-GameCount $game;
+              Get-GameNumbers;
+              if ($count -ne 1) {
+                $gameResp = "$count Number sets created for $game"
+              } else { $gameResp = "$Global:sel selected for $game"}
+            } else {
+              $gameResp = "$game is only played on Wed or Sat"
+            }
+            $gameResp = $gameResp.PadRight(68);break
+          }
+        2 { $game = "MegaMillions";
+            if ($da -eq "Tue" -or $da -eq "Fri") {
+              $count = Get-GameCount $game;
+              Get-GameNumbers;
+              if ($count -ne 1) {
+                $gameResp = "$count Number sets created for $game"
+              } else { $gameResp = "$Global:sel selected for $game"}
+            } else {
+              $gameResp = "$game is only played on Tue or Fri"
+            }
+            $gameResp = $gameResp.PadRight(68);break
+          }
+        3 { $game = "Lotto";
+            if ($da -eq "Mon" -or $da -eq "Wed" -or $da -eq "Sat") {
+              $count = Get-GameCount $game;
+              $count = $count * 2;
+              Get-GameNumbers;
+              if ($count -ne 1) {
+                $gameResp = "$count Number sets created for $game"
+              } else { $gameResp = "$Global:sel selected for $game"}
+            } else {
+              $gameResp = "$game is only played on Mon, Wed and Sat"
+            }
+            $gameResp = $gameResp.PadRight(68);break
+          }
+        4 { $game = "Hit5";
+            if ($da -eq "Mon" -or $da -eq "Wed" -or $da -eq "Sat") {
+              $count = Get-GameCount $game;
+              Get-GameNumbers;
+              if ($count -ne 1) {
+                $gameResp = "$count Number sets created for $game"
+              } else { $gameResp = "$Global:sel selected for $game"}
+            } else {
+              $gameResp = "$game is only played on Mon, Wed and Sat"
+            }
+            $gameResp = $gameResp.PadRight(68);break
+          }
+        5 { $game = "Match4";
+            $count = Get-GameCount $game;
+            Get-GameNumbers;
+            $gameResp = "$count Number sets created for $game";
+            $gameResp = $gameResp.PadRight(68);break
+           }
+        6 { $game = "DailyGame";
+            $count = Get-GameCount $game;
+            Get-GameNumbers;
+            if ($count -ne 1) {
+                $gameResp = "$count Number sets created for $game"
+            } else { $gameResp = "$Global:sel selected for $game"}
+            $gameResp = $gameResp.PadRight(68);break
+          }
+        7 { # List current Games
+            Clear-Host;
+            if (Test-Path $curPicks) {
+              $currentPicks = Import-CSV -Path $curPicks -Delimiter ";" -Header $Picked;
+              $currentPicks | Format-Table -AutoSize;
+            } else { 
+              $gameResp = "No Games have be played yet"
+              $gameResp = $gameResp.PadRight(68);break
+            }
+            Read-Host "Press any key to continue..."
+            break;
+            }
+        8 { clear-line1; break }
+        default {
+          $gameResp = "Invalid Choice.......Try 1-8 only"
+          $gameResp = $gameResp.PadRight(68)
+        }
+      }
+    } While ($gameChoice -ne 8)
+    Clear-Screen
+  }
+
+  Function Get-MainMenu {
+	  Param ($menucolor = "Blue", $promptcolor = "Green", $pickColor = "White")
+    Do {
+	      Clear-Host
+        Write-Host ""
+        Write-Host ""
+        Write-Host "  =====================================================" -ForegroundColor $menucolor
+        Write-Host "  |                 Get-JackPot                       |" -ForegroundColor Red
+        Write-Host "  =====================================================" -ForegroundColor $menucolor
+        Write-Host "  |                                                   |" -ForegroundColor $menucolor
+        Write-Host "  |     1. Show Current Online Games                  |" -ForegroundColor $pickColor
+		    Write-Host "  |                                                   |" -ForegroundColor $menucolor
+		    Write-Host "  |     2. Pick Lottery Game Numbers                  |" -ForegroundColor $pickColor
+		    Write-Host "  |                                                   |" -ForegroundColor $menucolor
+        Write-Host "  |     3. Show Games Played                          |" -ForegroundColor $pickColor
+		    Write-Host "  |                                                   |" -ForegroundColor $menucolor
+        Write-Host "  |     4. Check Games for matching Numbers           |" -ForegroundColor $pickColor
+ 		    Write-Host "  |                                                   |" -ForegroundColor $menucolor
+        Write-Host "  |     5. Donate, if you win big                     |" -ForegroundColor $pickColor       
+		    Write-Host "  |                                                   |" -ForegroundColor $menucolor
+        Write-Host "  |     6. Quit                                       |" -ForegroundColor Magenta
+        Write-Host "  |                                                   |" -ForegroundColor $menucolor
+		    Write-Host "  =====================================================" -ForegroundColor $menucolor
+        Write-Host "  "
+		    Write-Host "  Select an option (1-6):  " -ForegroundColor $promptcolor -NoNewline
+		    $curPos = $host.UI.RawUI.CursorPosition
+		    $curPos.X = 0
+		    $host.UI.RawUI.CursorPosition = $curPos
+		    Write-Host "  Select an option (1-6): " -ForegroundColor $promptcolor -NoNewline
+        $Choice = Read-Host
+
+    } While($Choice -notin (1..6))
+	  return $Choice
+  }
+
+#
+
 # Main Routine
 
   $sPath    = Get-Location;
@@ -649,6 +866,7 @@
   $HotNums  = "$sPath\JackPot-HotNums.csv";
   $curPicks = "$sPath\JackPot-Picks.csv";
   $PickHis  = "$sPath\JackPot-PickHistory.csv";
+  $menu     = $false;
 
   if (Test-Path $temp1 ) {
     Remove-Item -Path $temp1 
@@ -698,11 +916,38 @@
       } else { Show-JackPotError; }
     }
     Default {
-      if (Test-Path $JackPot) {
-        $currentGames = Import-CSV -Path $JackPot -Delimiter ";" -Header $JackPotHeader;
-        $currentGames | Select-Object -Last 12 | Format-Table -AutoSize -Wrap;
-      } else { Show-JackPotError; }
+      Clear-Host;
+      $menu = $true;
+      While (($option = Get-MainMenu) -ne 6 ) {
+        switch ($option) {                        
+          1 { Clear-Host; $update = $true; Get-WaWebRequest; $update = $false; break}
+          2 { Get-GameMenu; break}
+          3 { Clear-Host;
+              if (Test-Path $JackPot) {
+                $currentPicks = Import-CSV -Path $PickHis
+                $currentPicks | Select-Object | Format-Table -AutoSize -Wrap;
+              } else { Show-JackPotError; }
+              Read-Host "Press any key to continue..."
+              break;
+            }
+          4 { Clear-Host;
+              $update = $true; $online = $true;
+              Get-WaWebRequest;
+              $update = $false; $online = $false;
+              break;
+            }
+          5 { # Donate
+              Write-Host "THANK YOU!! for the Donation" -ForegroundColor Red -NoNewline;
+              Read-Host "  Press any key to continue";
+              $URL = "https://www.paypal.me/CraigDayton";
+              $Browser = new-object -com internetexplorer.application;
+              $Browser.navigate2($URL);
+              $Browser.visible = $true;
+            }
+          6 { exit;}
+          #    default {$errout = "No, try again........Try 1-6 only"}
+          }
+      }
     }
   }
-
 #
