@@ -1,8 +1,8 @@
-site_name: JackPot Docs
+site_name: JackPot
 repo_url: https://github.com/cadayton/JackPot
 theme: readthedocs
 pages:
-  - Home: Home.md
+  - Home: index.md
   - Game Basics:
     - Game Menu: Game-Menu.md
     - Game Workflow: Game-Workflow.md
