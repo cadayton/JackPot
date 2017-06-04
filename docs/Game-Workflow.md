@@ -4,7 +4,7 @@ To view the current winning game numbers and verify that everything is setup cor
 
 The output should appear simliar to this.
 
-[![Current](images/Currrent-Games.png)](images/Current-Games.png)
+[![Current](images/Current-Games.png)](images/Current-Games.png)
 
 If errors occurred executing the above command, then resolve the issue before executing any other commands.
 
