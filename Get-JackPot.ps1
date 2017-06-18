@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-  .VERSION 3.0.0
+  .VERSION 3.1.0
   .GUID 0fd916fe-3a0d-48c4-a196-18ea085e071f
   .AUTHOR Craig Dayton
   .COMPANYNAME Example.com
@@ -15,6 +15,11 @@
   .RELEASENOTES
 
 #>
+
+# Using
+  using namespace System.Diagnostics
+  using namespace System.Management.Automation
+#
 
 <#
   .SYNOPSIS
@@ -186,6 +191,7 @@
 
   .NOTES
     Author: Craig Dayton
+      3.1.0  06/18/2017 - Improved Progress Bar displayed
       3.0.0: 04/05/2017 - Implemented a character based menu interface
       2.1.1: 04/01/2017 - Fixed logic errors & updated embeded documentation
       2.1.0: 03/27/2017 - Added feature to evaluate picked numbers against winning numbers
@@ -274,6 +280,68 @@
     $AllArray.Add('Match4,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24') | Out-Null;
     $AllArray.Add('DailyGame,1 2 3 4 5 6 7 8 9,1 2 3 4 5 6 7 8 9,1 2 3 4 5 6 7 8 9') | Out-Null;
   #
+
+#
+
+# Classes
+
+  class ProgressManager {
+    [long] $TotalItemCount
+    hidden [int] $ActivityId
+    hidden [int] $ParentActivityId
+    hidden [string] $Activity
+    [string] $StatusDescription
+    hidden [StopWatch] $Stopwatch
+    [long] $currentItemIndex
+
+    ProgressManager([string] $activity, [string] $statusDescription, [long] $totalItemCount) {
+        $this.init($activity, $StatusDescription, $totalItemCount, 1, - 1)
+    }
+
+    ProgressManager([string] $activity, [string] $statusDescription, [long] $totalItemCount, [int] $activityId, [int] $parentActivityId) {
+        $this.init($activity, $StatusDescription, $totalItemCount, $activityId, $parentActivityId)
+    }
+
+    hidden init([string] $activity, [string] $statusDescription, [long] $totalItemCount, [int] $activityId, [int] $parentActivityId) {
+        $this.TotalItemCount = $totalItemCount
+        $this.StatusDescription = $statusDescription
+        $this.ActivityId = $activityId
+        $this.ParentActivityId = $parentActivityId
+        $this.Activity = $activity
+        $this.Stopwatch = [Stopwatch]::StartNew()
+    }
+    [ProgressRecord] GetCurrentProgressRecord([string] $currentOperation) {
+        $pr = [ProgressRecord]::new($this.ActivityId, $this.Activity, $this.StatusDescription)
+        $pr.CurrentOperation = $currentOperation
+        $pr.ParentActivityId = $this.ParentActivityId
+        $pr.PercentComplete = $this.GetPercentComplete($this.currentItemIndex)
+        $pr.SecondsRemaining = $this.GetSecondsRemaining($this.currentItemIndex)
+        $this.currentItemIndex++
+        return $pr
+    }
+
+    [ProgressRecord] GetCurrentProgressRecord([long] $currentItemIndex, [string] $currentOperation) {
+        $this.currentItemIndex = $currentItemIndex
+        return $this.GetCurrentProgressRecord($currentOperation)
+    }
+
+    [ProgressRecord] GetCompletedRecord() {
+        $pr = [ProgressRecord]::new($this.ActivityId, $this.Activity, $this.StatusDescription)
+        $pr.RecordType = [ProgressRecordType]::Completed
+        return $pr
+    }
+
+    hidden [int] GetSecondsRemaining([long] $currentItemIndex) {
+        if ($this.stopwatch.ElapsedMilliseconds -lt 3000) {return -1 }
+        if ($currentItemIndex -ge $this.totalItemCount) { return 0 }
+        return [int] (($this.totalItemCount - $currentItemIndex) * $this.stopwatch.Elapsed.TotalSeconds / $currentItemIndex)
+    }
+
+    hidden [int] GetPercentComplete([long] $currentItemIndex) {
+        if ($currentItemIndex -ge $this.totalItemCount) { return 100 }
+        return [Math]::Min([int] ($currentItemIndex * 100 / $this.totalItemCount), 100)
+    }
+  }
 
 #
 
@@ -451,13 +519,19 @@
 
   function Get-WaWebRequest {
     
+    [long]$totalTasks = 7;
+
+    $pm = [ProgressManager]::new("Processing response from $URI1", "Getting Game Results", $totalTasks)
+    $PSCmdlet.WriteProgress( $pm.GetCurrentProgressRecord(1, "Executing Web Request"))
+    
     $response = Invoke-WebRequest -URI $URI1;
 
+    Start-Sleep -Seconds 3;
+
     if ($response.StatusCode -eq "200") {
-      Write-Progress -Activity "Processing response from $URI1 ..." -Status "Please wait"
 
       $Global:game = "PowerBall";
-      Write-Host " Processing $Global:game results"  -ForegroundColor Green
+      $PSCmdlet.WriteProgress( $pm.GetCurrentProgressRecord(2, "Processing $Global:game results 1 of 6"))
       $data = $($response.ParsedHtml.getElementsByTagName("div") |
                 Where-Object classname -eq "game-bucket game-bucket-powerball"
               );
@@ -465,17 +539,15 @@
       Convert-fileToCSV $temp1;
 
       $Global:game = "MegaMillions";
-      Write-Host " Processing $Global:game results"  -ForegroundColor Green
+      $PSCmdlet.WriteProgress( $pm.GetCurrentProgressRecord(3, "Processing $Global:game results 2 of 6"))
       $data = $($response.ParsedHtml.getElementsByTagName("div") |
                 Where-Object classname -eq "game-bucket game-bucket-megamillions"
               );
       $data.innerText | Out-File -FilePath $temp1 -Append -Encoding ascii;
       Convert-fileToCSV $temp1;
 
-      Write-Progress -Activity "Done" -Completed;
-
       $Global:game = "Lotto";
-      Write-Host " Processing $Global:game results"  -ForegroundColor Green
+      $PSCmdlet.WriteProgress( $pm.GetCurrentProgressRecord(4, "Processing $Global:game results 3 of 6"))
       $data = $($response.ParsedHtml.getElementsByTagName("div") |
                 Where-Object classname -eq "game-bucket game-bucket-lotto"
               );
@@ -483,7 +555,7 @@
       Convert-fileToCSV $temp1;
 
       $Global:game = "Hit5";
-      Write-Host " Processing $Global:game results"  -ForegroundColor Green
+      $PSCmdlet.WriteProgress( $pm.GetCurrentProgressRecord(5, "Processing $Global:game results 4 of 6"))
       $data = $($response.ParsedHtml.getElementsByTagName("div") |
                 Where-Object classname -eq "game-bucket game-bucket-hit5"
               );
@@ -491,7 +563,7 @@
       Convert-fileToCSV $temp1;
 
       $Global:game = "Match4";
-      Write-Host " Processing $Global:game results"  -ForegroundColor Green
+      $PSCmdlet.WriteProgress( $pm.GetCurrentProgressRecord(6, "Processing $Global:game results 5 of 6"))
       $data = $($response.ParsedHtml.getElementsByTagName("div") |
                 Where-Object classname -eq "game-bucket game-bucket-match4"
               );
@@ -499,12 +571,14 @@
       Convert-fileToCSV $temp1;
 
       $Global:game = "DailyGame";
-      Write-Host " Processing $Global:game results"  -ForegroundColor Green
+      $PSCmdlet.WriteProgress( $pm.GetCurrentProgressRecord(7, "Processing $Global:game results 6 of 6"))
       $data = $($response.ParsedHtml.getElementsByTagName("div") |
                 Where-Object classname -eq "game-bucket game-bucket-dailygame"
               );
       $data.innerText | Out-File -FilePath $temp1 -Append -Encoding ascii;
       Convert-fileToCSV $temp1;
+
+      $PSCmdlet.WriteProgress($pm.GetCompletedRecord());
 
       <# commented out Keno
         $Global:game = "Keno"; $Global:ID = 7;
@@ -527,7 +601,7 @@
       };
 
       if ($menu) {
-        Read-Host "Press any key to continue..."
+        Read-Host "Press any key to continue...";
       }
 
     } else {
@@ -537,9 +611,22 @@
   }
 
   function Show-JackPotError {
-    Write-Host "$JackPot not found"
-    Write-Host "Execute 'Get-JackPot -update' to create the history file."
-    Write-Host "Get-Help Get-JackPot -full and review the documentation."
+    param ($fileNm)
+
+    Write-Host "$fileNm not found" -ForegroundColor Blue
+    switch ($fileNm) {
+      $JackPot {
+        Write-Host "Execute 'Get-JackPot -update' to create the history file."
+        Write-Host "Get-Help Get-JackPot -full and review the documentation."
+        Write-Host " "
+      }
+      $PickHis {
+        Write-Host "It is likely you've never selected option 4 from the Main Menu."
+        Write-Host "Once option 4 has been performed, the PickHistory file will be created."
+        Write-Host " "
+      }
+      Default { }
+    }
   }
 
   function Get-MultiPicker {
@@ -823,7 +910,8 @@
   Function Get-MainMenu {
 	  Param ($menucolor = "Blue", $promptcolor = "Green", $pickColor = "White")
     Do {
-	      Clear-Host
+        Clear-Screen;
+	      Clear-Host;
         Write-Host ""
         Write-Host ""
         Write-Host "  =====================================================" -ForegroundColor $menucolor
@@ -897,7 +985,7 @@
           Write-Host "$game not found" -ForegroundColor Red
           Write-Host "Valid game names are: 'PowerBall, MegaMillions, Hit5, Match4, and DailyGame' " -ForegroundColor Green
        } 
-      } else { Show-JackPotError; }
+      } else { Show-JackPotError $JackPot; }
 
     }
     "GamePicker" {
@@ -906,31 +994,35 @@
     "AllHistory" {
       if (Test-Path $JackPot) {
         Import-CSV -Path $JackPot -Delimiter ";" -Header $JackPotHeader | Out-GridView -Title "Listing of lottery game records"
-      } else { Show-JackPotError; }
+      } else { Show-JackPotError $JackPot; }
     }
     "PickHistory" {
-      if (Test-Path $JackPot) {
+      if (Test-Path $PickHis) {
         $currentPicks = Import-CSV -Path $PickHis
         #$currentPicks | Select-Object | Format-Table -AutoSize -Wrap;
         $currentPicks | Out-GridView -Title "Listing of games played history"
-      } else { Show-JackPotError; }
+      } else { Show-JackPotError $JackHis; }
     }
     Default {
       Clear-Host;
       $menu = $true;
       While (($option = Get-MainMenu) -ne 6 ) {
         switch ($option) {                        
-          1 { Clear-Host; $update = $true; Get-WaWebRequest; $update = $false; break}
-          2 { Get-GameMenu; break}
-          3 { Clear-Host;
-              if (Test-Path $JackPot) {
+          1 { # Show Current Online Games
+              Clear-Host; $update = $true; Get-WaWebRequest; $update = $false; break}
+          2 { # Pick Lottery Game Numbers
+              Get-GameMenu; break}
+          3 { # Show Games Played
+              Clear-Host;
+              if (Test-Path $PickHis) {
                 $currentPicks = Import-CSV -Path $PickHis
                 $currentPicks | Select-Object -Last 16 | Format-Table -AutoSize -Wrap;
-              } else { Show-JackPotError; }
+              } else { Show-JackPotError $PickHis; }
               Read-Host "Press any key to continue..."
               break;
             }
-          4 { Clear-Host;
+          4 { # Check Games for matching Numbers
+              Clear-Host;
               $update = $true; $online = $true;
               Get-WaWebRequest;
               $update = $false; $online = $false;
@@ -944,8 +1036,9 @@
               $Browser.navigate2($URL);
               $Browser.visible = $true;
             }
-          6 { exit;}
-          #    default {$errout = "No, try again........Try 1-6 only"}
+          6 { # Quit
+              exit;}
+
           }
       }
     }
