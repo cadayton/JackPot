@@ -16,11 +16,6 @@
 
 #>
 
-# Using
-  using namespace System.Diagnostics
-  using namespace System.Management.Automation
-#
-
 <#
   .SYNOPSIS
     Display the current Washington State lottery game results and optionally stores the 
@@ -202,6 +197,10 @@
     
 #>
 
+# Using
+  using namespace System.Diagnostics
+  using namespace System.Management.Automation
+#
 
 # Get-JackPot Params
   [cmdletbinding()]
