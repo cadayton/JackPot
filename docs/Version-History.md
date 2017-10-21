@@ -1,5 +1,6 @@
 Date | Version | Description
 ---- | ------- | -----------
+10/21/2017 | 3.2.0 | On 10/28/2017, MegaMillion game ranges will be (1-70) & MegaBall is (1-25)
 06/18/2017 | 3.1.0 | [Improved Progress Bar by Staffan Gustafsson](#improved-progress-bar-by-staffan-gustafsson)
 04/05/2017 | 3.0.0 | Implemented Menu system to simplify the game play.
 04/01/2017 | 2.1.1 | Fix logic error with selection of game numbers.
@@ -26,7 +27,11 @@ PowerBall and MegaMillion are unique in that they have a second pool of numbers 
 
 If desired, the set of numbers in the pool can be anything you desire.  I just happened to use numbers that are most frequently drawn for each game.
 
-By default, the $HotArray is always used as the pool of numbers to be used for number selection.  Another array called $AllArray contains all of the available numbers for each game.  It is possible to modify the default to be this pools of numbers for selection.  See the documentation on how to change the default selection pool.
+By default, the $HotArray is always used as the pool of numbers to be used for number selection. The array $HotArray is written to a file called, **JackPot-HotNums.csv** in the execution folder.  If the file doesn't exist in the execution folder it will be created automatically.
+
+When the CLI is used to pick numbers and the '-all' option is specified, the array called $AllArray is written to a file called, **JackPot-HotNums.csv** found in the execution folder. The file will now contain all of the available numbers for each game.
+
+The file, **JackPot-HotNums.csv** is always loaded at the beginning to determine the set of numbers available for each game. If desired, this file can be modified with any ASCII editor to set the selection of game numbers to your own desired values.
 
 # Improved Progress Bar by Staffan Gustafsson
 
