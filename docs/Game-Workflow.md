@@ -33,7 +33,7 @@ Generates 2 sets winning numbers for the 'PowerBall' game and places the bets in
 With these numbers in hand, go to your local lottery store and complete the game card.
 
 By default only the most frequent winning numbers for the game are candidates for selection.  The default selection process
-can be overridden by specifing the '-all' option.  See the developer notes on how to specify your own set of favorite numbers for each game.
+can be overridden by specifing the '-all' option.  See the Version History notes on how to specify your own set of favorite numbers for each game.
 
 Once the '-all' is specified that method becomes the new default. To switch back to the prior default selection method the file, **JackPot-HotNums.csv** must be deleted.
 ***

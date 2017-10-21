@@ -42,4 +42,4 @@ The recent game picks in the file, **JackPot-Picks.csv** are updated with the wi
 [![GameMatch](images/Game-Match.png)](images/Game-Match.png)
 
 ***
-If you win big, please consider selecting option **5. Donate**
+If you win big or simply enjoy using Get-JackPot, please consider selecting option **5. Donate**.  Donations accepted via PayPal, BitCoin (BTC), BitCoin Cash (BTH), Etherum (ETH), or LiteCoint (LTC).

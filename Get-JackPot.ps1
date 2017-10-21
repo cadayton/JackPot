@@ -1,6 +1,6 @@
 <#PSScriptInfo
 
-  .VERSION 3.1.0
+  .VERSION 3.2.0
   .GUID 0fd916fe-3a0d-48c4-a196-18ea085e071f
   .AUTHOR Craig Dayton
   .COMPANYNAME Example.com
@@ -61,7 +61,6 @@
 
   .PARAMETER picks
     Displays the history of past games that have been played.
-
 
   .PARAMETER count
     Used in combination with the 'game' and 'picker' option to generate
@@ -186,7 +185,8 @@
 
   .NOTES
     Author: Craig Dayton
-      3.1.0  06/18/2017 - Improved Progress Bar displayed
+      3.2.0: 10/21/2017 - MegaMillion game ranges now (1-70) & MegaBall is (1-25)
+      3.1.0: 06/18/2017 - Improved Progress Bar displayed
       3.0.0: 04/05/2017 - Implemented a character based menu interface
       2.1.1: 04/01/2017 - Fixed logic errors & updated embeded documentation
       2.1.0: 03/27/2017 - Added feature to evaluate picked numbers against winning numbers
@@ -194,8 +194,14 @@
       1.0.2: 03/24/2017 - Game record duplication algorthim modified
       1.0.1: 03/23/2017 - Fixed some logic errors
       1.0.0: 03/22/2017 - initial release.
-    
+
+  .LINK
+    https://github.com/cadayton/JackPot
+
+  .LINK
+    http://jackpot.readthedocs.io
 #>
+
 
 # Using
   using namespace System.Diagnostics
@@ -252,6 +258,7 @@
 
 # Declarations
   $URI1 = "http://www.walottery.com/WinningNumbers";
+  $vrsx = "3.2.0";
 
   [String[]]$JackPotHeader  = "Game", "DrawDate","DrawDay", "Numbers", "Multiplier", "JackPot", "NextDraw", "NextDay";
   [String[]]$MultiHeader    = "Game", "HotNums","Multiplier";
@@ -273,7 +280,7 @@
   # All game numbers
     $AllArray = New-Object System.Collections.ArrayList;
     $AllArray.Add('PowerBall,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26') | Out-Null;
-    $AllArray.Add('MegaMillions,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75,01 02 03 04 06 07 08 09 10 12 14 15') | Out-Null;
+    $AllArray.Add('MegaMillions,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70,01 02 03 04 06 07 08 09 10 12 14 15 16 17 18 19 20 21 22 23 24 25') | Out-Null;
     $AllArray.Add('Lotto,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49') | Out-Null;
     $AllArray.Add('Hit5,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39') | Out-Null;
     $AllArray.Add('Match4,01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24') | Out-Null;
@@ -780,6 +787,85 @@
     }
   }
 
+  function Get-DonateMenu {
+    Param ($menucolor = "Blue", $promptcolor = "Green", $pickColor = "White")
+    $DonateResp = "."
+    $DonateResp = $gameResp.PadLeft(68)
+    $online = $true; $update=$true;
+    $da = Get-Date -uformat %a
+    Do {
+      Clear-Host
+      Write-Host " "
+      Write-Host "  $DonateResp " -ForegroundColor Red
+      Write-Host "  =====================================================" -ForegroundColor $menucolor
+      Write-Host "  |             Select Donation Method                |" -ForegroundColor $menucolor
+      Write-Host "  =====================================================" -ForegroundColor $menucolor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     1. PayPal Donation                            |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     2. BitCoin Donation (BTC)                     |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     3. BitCoin Cash Donation (BTH)                |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     4. Etherum Donation (ETH)                     |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     5. LiteCoin Donation (LTC)                    |" -ForegroundColor $pickColor
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  |     6. Exit                                       |" -ForegroundColor Magenta
+      Write-Host "  |                                                   |" -ForegroundColor $menucolor
+      Write-Host "  =====================================================" -ForegroundColor $menucolor
+      Write-Host "  "
+      Write-Host "  Select a Donation Method (1-5):  " -ForegroundColor $promptcolor -NoNewline
+      $curPos = $host.UI.RawUI.CursorPosition
+      $curPos.X = 0
+      $host.UI.RawUI.CursorPosition = $curPos
+      Write-Host "  Select a Donation Method (1-5): " -ForegroundColor $promptcolor -NoNewline
+      $DonateResp = " "
+      $DonateChoice = Read-Host
+
+      switch ($DonateChoice) {                        
+        1 { # PayPal Donation
+            $DonateResp = "THANK YOU!! for the PayPal Donation";
+            $URL = "https://www.paypal.me/CraigDayton";
+            # Edge Browser only
+              #$Browser = new-object -com internetexplorer.application;
+              #$Browser.navigate2($URL);
+              #$Browser.visible = $true;
+            #
+            # Default browser
+            "Donor" | Out-File -FilePath $temp3 -Append -Encoding ascii;
+            Start-Process $URL
+            $DonateResp = $DonateResp.PadRight(68);break
+          }
+        2 { # BitCoin Donation
+            $DonateResp = "THANK YOU!! for the BitCoin (BTC) Donation to: 12YvJdkuFarTLqeaomPCXxBW9xEXd88m6K";
+            "Donor" | Out-File -FilePath $temp3 -Append -Encoding ascii;
+            $DonateResp = $DonateResp.PadRight(68);break
+          }
+        3 { # BitCoin Cash Donation
+            $DonateResp = "THANK YOU!! for the BitCoin Cash (BTH) Donation to: 1At8tpGDVXp1uXQD11RRrQt7PtFwj1bhfN";
+            "Donor" | Out-File -FilePath $temp3 -Append -Encoding ascii;
+            $DonateResp = $DonateResp.PadRight(68);break
+          }
+        4 { # Ethernum Donation
+            $DonateResp = "THANK YOU!! for the Etherum (ETH) Donation to: 0xde9ab3188E485D77c45a925Fe4F7c7a8Bfc1D647";
+            "Donor" | Out-File -FilePath $temp3 -Append -Encoding ascii;
+            $DonateResp = $DonateResp.PadRight(68);break
+          }
+        5 { # LiteCoin Donation
+            $DonateResp = "THANK YOU!! for the LiteCoin (LTC) Donation to: LMumQYvevWqxi7Zr4cvZMf7NjgM6bX62CC";
+            "Donor" | Out-File -FilePath $temp3 -Append -Encoding ascii;
+            $DonateResp = $DonateResp.PadRight(68);break
+          }
+        6 { clear-line1; break }
+        default {
+          $DonateResp = "Invalid Choice.......Enter a value of 1-6 only"
+          $DonateResp = $DonateResp.PadRight(68)
+        }
+      }
+    } While ($DonateChoice -ne 6)
+    Clear-Screen
+  }
   function Get-GameMenu {
     Param ($menucolor = "Blue", $promptcolor = "Green", $pickColor = "White")
     $gameResp = "."
@@ -914,7 +1000,7 @@
         Write-Host ""
         Write-Host ""
         Write-Host "  =====================================================" -ForegroundColor $menucolor
-        Write-Host "  |                 Get-JackPot                       |" -ForegroundColor Red
+        Write-Host "  |                 Get-JackPot $vrsx                 |" -ForegroundColor Red
         Write-Host "  =====================================================" -ForegroundColor $menucolor
         Write-Host "  |                                                   |" -ForegroundColor $menucolor
         Write-Host "  |     1. Show Current Online Games                  |" -ForegroundColor $pickColor
@@ -942,6 +1028,30 @@
 	  return $Choice
   }
 
+  function Get-GuiltTrip {
+    Clear-Host
+    Write-Host "Looks like you have been enjoying " -NoNewline -ForegroundColor Blue
+    Write-Host "Get-JackPot " -NoNewline -ForegroundColor Red
+    Write-Host "for a while now and " -NoNewline -ForegroundColor Blue
+    Write-Host "THANKS " -NoNewline -ForegroundColor Red
+    Write-Host "for doing so." -ForegroundColor Blue
+    Write-Host " "
+    Write-Host "Donations via PayPal, Bitcoin, Bitcoin Cash, Etherum, and LiteCoin are accepted." -ForegroundColor Green
+    Write-Host " "
+    
+    $rslt = Read-Host "Would like to make a donation to show your graditude (Y or N)?"
+    Write-Host " "
+    
+    if ($rslt -match "Y") {
+      "Donor" | Out-File -FilePath $temp3 -Append -Encoding ascii;
+       Clear-Host;
+       Get-DonateMenu;
+    } else {
+      Write-Host "Thanks. Perhaps I will nag you later so you can show your graditude." -ForegroundColor Blue
+    }
+    
+  } 
+
 #
 
 # Main Routine
@@ -949,6 +1059,7 @@
   $sPath    = Get-Location;
   $temp1    = "$sPath\temp1.txt";
   $temp2    = "$sPath\temp2.txt";
+  $temp3    = "$sPath\temp3.txt";
   $JackPot  = "$sPath\JackPot-Results.csv";
   $HotNums  = "$sPath\JackPot-HotNums.csv";
   $curPicks = "$sPath\JackPot-Picks.csv";
@@ -1005,7 +1116,7 @@
     Default {
       Clear-Host;
       $menu = $true;
-      While (($option = Get-MainMenu) -ne 6 ) {
+      While (($option = Get-MainMenu) -lt 7 ) {
         switch ($option) {                        
           1 { # Show Current Online Games
               Clear-Host; $update = $true; Get-WaWebRequest; $update = $false; break}
@@ -1028,14 +1139,16 @@
               break;
             }
           5 { # Donate
-              Write-Host "THANK YOU!! for the Donation" -ForegroundColor Red -NoNewline;
-              Read-Host "  Press any key to continue";
-              $URL = "https://www.paypal.me/CraigDayton";
-              $Browser = new-object -com internetexplorer.application;
-              $Browser.navigate2($URL);
-              $Browser.visible = $true;
+              Get-DonateMenu;
+              break
             }
           6 { # Quit
+              $lncnt = (Get-Content $PickHis | measure-object -line).Lines
+              [int]$fre = $lncnt % 200;
+              if (!(Test-Path $temp3) -and ($fre -eq 0)) {
+                Get-GuiltTrip;
+              }
+
               exit;}
 
           }
